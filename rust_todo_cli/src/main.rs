@@ -1,4 +1,5 @@
-use std::io::{self, Write};
+use std::io::{self, Write, BufRead, BufReader};
+use std::fs::{File, OpenOptions};
 
 struct Task {
     description: String,
@@ -6,7 +7,7 @@ struct Task {
 }
 
 fn main() {
-    let mut tasks: Vec<Task> = Vec::new();
+    let mut tasks = load_tasks();
     println!("Welcome to Rust To-Do CLI!");
 
     loop {
@@ -24,13 +25,53 @@ fn main() {
         let choice = choice.trim();
 
         match choice {
-            "1" => add_task(&mut tasks),
-            "2" => mark_done(&mut tasks),
+            "1" => {
+                add_task(&mut tasks);
+                save_tasks(&tasks);
+            },
+            "2" => {
+                mark_done(&mut tasks);
+                save_tasks(&tasks);
+            },
             "3" => list_tasks(&tasks),
             "4" => break,
             _ => println!("Invalid option!"),
         }
     }
+
+}
+
+fn save_tasks(tasks: &Vec<Task>) {
+    let mut file = File::create("tasks.txt").unwrap();
+
+    for task in tasks {
+        let line = format!("{}|{}\n", task.done, task.description);
+        file.write_all(line.as_bytes()).unwrap();
+    }
+}
+
+fn load_tasks() -> Vec<Task> {
+    let file = OpenOptions::new().read(true).open("tasks.txt");
+
+    let mut tasks = Vec::new();
+
+    if let Ok(file) = file {
+        let reader = BufReader::new(file);
+
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                let parts: Vec<&str> = line.split('|').collect();
+                if parts.len() == 2 {
+                    let done = parts[0] == "true";
+                    let description = parts[1].to_string();
+
+                    tasks.push(Task { description, done });
+                }
+            }
+        }
+    }
+
+    tasks
 }
 
 fn add_task(tasks: &mut Vec<Task>) {
